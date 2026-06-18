@@ -1,0 +1,25 @@
+{
+  "name": "car-analytics-dashboard",
+  "version": "2.1.0",
+  "description": "Full-stack Car Analytics Dashboard with K-Means clustering, real vehicle makes/models from NHTSA's free vPIC API, polling-based live updates, and MongoDB persistence. Deployable on Vercel.",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "nodemon server/server.js"
+  },
+  "engines": {
+    "node": ">=18.x"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "connect-mongo": "^5.1.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "express-session": "^1.18.0",
+    "mongodb": "^6.7.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}

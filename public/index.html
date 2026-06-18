@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Car Analytics Dashboard</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+
+  <!-- Open Graph / social share preview -->
+  <meta property="og:title" content="Car Analytics Dashboard" />
+  <meta property="og:description" content="Real-time car analytics, K-Means clustering, and price prediction." />
+  <meta property="og:image" content="og-image.svg" />
+  <meta property="og:type" content="website" />
+
+  <!-- Chart.js from CDN for all charts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- ======================= HEADER ======================= -->
+  <header class="header">
+    <h1>🚗 Car Analytics Dashboard</h1>
+    <div class="header-right">
+      <span id="lastUpdated" class="last-updated">Loading...</span>
+      <span id="connectionStatus" class="status status-connecting">Connecting...</span>
+      <button id="themeToggleBtn" class="theme-toggle-btn" title="Toggle light/dark theme">🌙</button>
+
+      <!-- Login button (shown when logged out) -->
+      <button id="loginOpenBtn" class="login-btn">Login</button>
+
+      <!-- Profile area (shown when logged in) -->
+      <div id="profileArea" class="profile-area" style="display:none;">
+        <button id="profileBtn" class="profile-btn" title="Account">
+          <img id="profileAvatar" class="profile-avatar" src="avatar-placeholder.svg" alt="Profile" />
+        </button>
+        <div id="profileDropdown" class="profile-dropdown">
+          <div id="profileUsername" class="profile-username"></div>
+          <button id="logoutBtn" class="clear-btn">Logout</button>
+        </div>
+      </div>
+
+      <button id="refreshBtn" class="refresh-btn">Refresh Now</button>
+    </div>
+  </header>
+
+  <!-- ======================= NAVIGATION ======================= -->
+  <nav class="main-nav">
+    <button class="nav-btn active" data-tab="dashboard">Dashboard</button>
+    <button class="nav-btn" data-tab="filters">Search &amp; Filter</button>
+    <button class="nav-btn" data-tab="predict">Predict Price</button>
+    <button class="nav-btn" data-tab="deals">Best Deals</button>
+    <button class="nav-btn" data-tab="compare">Compare</button>
+    <button class="nav-btn" data-tab="favorites">Favorites</button>
+  </nav>
+
+  <main class="container">
+
+    <!-- ======================= DASHBOARD TAB ======================= -->
+    <div id="tab-dashboard" class="tab-section active">
+
+      <!-- SUMMARY CARDS -->
+      <section class="cards-grid">
+        <div class="card">
+          <div class="card-label">Total Vehicles</div>
+          <div class="card-value" id="totalVehicles">-</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Average Price</div>
+          <div class="card-value" id="avgPrice">-</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Average Mileage</div>
+          <div class="card-value" id="avgMileage">-</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Average Engine Size</div>
+          <div class="card-value" id="avgEngineSize">-</div>
+        </div>
+        <div class="card card-highlight-good">
+          <div class="card-label">Good Deals Found</div>
+          <div class="card-value" id="goodDealsCount">-</div>
+        </div>
+        <div class="card card-highlight-warn">
+          <div class="card-label">Pricing Anomalies</div>
+          <div class="card-value" id="anomaliesCount">-</div>
+        </div>
+      </section>
+
+      <!-- CHARTS -->
+      <section class="charts-grid">
+        <div class="chart-card">
+          <h3>Price Distribution</h3>
+          <canvas id="priceHistogramChart"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <h3>Mileage vs Price</h3>
+          <canvas id="mileagePriceScatterChart"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <h3>Fuel Type Distribution</h3>
+          <canvas id="fuelPieChart"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <h3>Vehicle Age Distribution</h3>
+          <canvas id="ageBarChart"></canvas>
+        </div>
+
+        <div class="chart-card chart-card-centered">
+          <h3>Average Price by Brand</h3>
+          <canvas id="brandPriceChart"></canvas>
+        </div>
+
+        <div class="chart-card chart-card-centered">
+          <h3>Depreciation Curve (Avg Price by Age)</h3>
+          <canvas id="depreciationChart"></canvas>
+        </div>
+
+        <div class="chart-card chart-card-centered">
+          <h3>Live Average Price Trend</h3>
+          <canvas id="priceTrendChart"></canvas>
+        </div>
+      </section>
+
+      <!-- CLUSTERING -->
+      <section class="clustering-panel">
+        <h2>K-Means Vehicle Segments</h2>
+        <p class="section-subtitle">
+          Vehicles are automatically grouped into segments based on price, mileage,
+          engine size, and age. Clusters are retrained whenever new data arrives.
+          Click a segment card to highlight it and draw a connecting line through its points.
+          Gold star markers show each segment's centroid.
+        </p>
+
+        <div class="cluster-controls">
+          <label for="clusterFilter">Filter Segment:</label>
+          <select id="clusterFilter">
+            <option value="">All Segments</option>
+          </select>
+
+          <label for="kSlider">Number of Segments (K): <span id="kValue">3</span></label>
+          <input type="range" id="kSlider" min="2" max="6" step="1" value="3" />
+          <button id="retrainBtn" class="apply-btn">Retrain Clusters</button>
+        </div>
+
+        <div id="clusterStatsGrid" class="cluster-stats-grid">
+          <!-- populated dynamically -->
+        </div>
+        <div class="chart-card">
+          <h3>Clusters: Price vs Mileage</h3>
+          <canvas id="clusterScatterChart"></canvas>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ======================= SEARCH & FILTER TAB ======================= -->
+    <div id="tab-filters" class="tab-section">
+
+      <section class="filters-panel">
+        <h2>Search &amp; Filter</h2>
+        <div class="filters-grid">
+          <div class="filter-group">
+            <label for="filterBrand">Brand</label>
+            <select id="filterBrand">
+              <option value="">All Brands</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="filterFuelType">Fuel Type</label>
+            <select id="filterFuelType">
+              <option value="">All Fuel Types</option>
+              <option value="Petrol">Petrol</option>
+              <option value="Diesel">Diesel</option>
+              <option value="Electric">Electric</option>
+              <option value="Hybrid">Hybrid</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label>Price Range (₹)</label>
+            <div class="range-inputs">
+              <input type="number" id="filterMinPrice" placeholder="Min" min="0" />
+              <span>-</span>
+              <input type="number" id="filterMaxPrice" placeholder="Max" min="0" />
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <label>Mileage Range (km)</label>
+            <div class="range-inputs">
+              <input type="number" id="filterMinMileage" placeholder="Min" min="0" />
+              <span>-</span>
+              <input type="number" id="filterMaxMileage" placeholder="Max" min="0" />
+            </div>
+          </div>
+
+          <div class="filter-group">
+            <label>Special Filters</label>
+            <div class="checkbox-row">
+              <label class="checkbox-label"><input type="checkbox" id="filterGoodDeal" /> Good Deals only</label>
+              <label class="checkbox-label"><input type="checkbox" id="filterAnomaly" /> Anomalies only</label>
+            </div>
+          </div>
+
+          <div class="filter-group filter-actions">
+            <button id="applyFiltersBtn" class="apply-btn">Apply Filters</button>
+            <button id="clearFiltersBtn" class="clear-btn">Clear</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- VEHICLE TABLE -->
+      <section class="table-panel">
+        <h2>Vehicle Listings</h2>
+
+        <div class="table-controls">
+          <input type="text" id="tableSearchInput" placeholder="Quick search by brand or model..." />
+          <button id="addCompareBtn" class="compare-btn">Add Selected to Compare</button>
+        </div>
+
+        <div class="table-wrapper">
+          <table id="vehicleTable">
+            <thead>
+              <tr>
+                <th></th>
+                <th>★</th>
+                <th>Brand</th>
+                <th>Model</th>
+                <th>Fuel Type</th>
+                <th>Year</th>
+                <th>Age</th>
+                <th>Price (₹)</th>
+                <th>Mileage (km)</th>
+                <th>Engine Size (L)</th>
+                <th>Segment</th>
+                <th>Flags</th>
+              </tr>
+            </thead>
+            <tbody id="vehicleTableBody">
+              <!-- populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ======================= PREDICT PRICE TAB ======================= -->
+    <div id="tab-predict" class="tab-section">
+      <section class="predict-panel">
+        <h2>Price Prediction Tool</h2>
+        <p class="section-subtitle">
+          A linear regression model (trained on the current dataset) estimates a
+          "fair" market price based on brand, mileage, vehicle age, and engine size.
+        </p>
+
+        <div class="predict-form">
+          <div class="filter-group">
+            <label for="predictBrand">Brand</label>
+            <select id="predictBrand"></select>
+          </div>
+          <div class="filter-group">
+            <label for="predictMileage">Mileage (km)</label>
+            <input type="number" id="predictMileage" min="0" placeholder="e.g. 45000" />
+          </div>
+          <div class="filter-group">
+            <label for="predictAge">Vehicle Age (years)</label>
+            <input type="number" id="predictAge" min="0" max="30" placeholder="e.g. 4" />
+          </div>
+          <div class="filter-group">
+            <label for="predictEngineSize">Engine Size (L)</label>
+            <input type="number" id="predictEngineSize" min="0" step="0.1" placeholder="e.g. 1.5" />
+          </div>
+          <div class="filter-group">
+            <label for="predictAskingPrice">Your Asking Price (₹) - optional</label>
+            <input type="number" id="predictAskingPrice" min="0" placeholder="e.g. 1200000" />
+          </div>
+          <div class="filter-group filter-actions">
+            <button id="predictBtn" class="apply-btn">Predict Price</button>
+          </div>
+        </div>
+
+        <div id="predictResult" class="predict-result"></div>
+      </section>
+    </div>
+
+    <!-- ======================= BEST DEALS TAB ======================= -->
+    <div id="tab-deals" class="tab-section">
+      <section class="table-panel">
+        <h2>🔥 Best Deals</h2>
+        <p class="section-subtitle">
+          Vehicles priced at least 15% below their K-Means segment's average price,
+          sorted by discount percentage.
+        </p>
+        <div class="table-wrapper">
+          <table id="dealsTable">
+            <thead>
+              <tr>
+                <th>Brand</th>
+                <th>Model</th>
+                <th>Fuel Type</th>
+                <th>Price (₹)</th>
+                <th>Segment Avg (₹)</th>
+                <th>Discount</th>
+                <th>Segment</th>
+              </tr>
+            </thead>
+            <tbody id="dealsTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- ======================= COMPARE TAB ======================= -->
+    <div id="tab-compare" class="tab-section">
+      <section class="compare-panel">
+        <h2>Compare Vehicles</h2>
+        <p class="section-subtitle">
+          Select vehicles from the "Search &amp; Filter" tab using the checkboxes,
+          then click "Add Selected to Compare" to view a side-by-side comparison here.
+        </p>
+        <div id="compareContent">
+          <p class="compare-empty">No vehicles selected for comparison yet.</p>
+        </div>
+
+        <div id="compareChartsWrapper" class="compare-charts-wrapper" style="display:none;">
+          <div class="chart-card">
+            <h3>Relative Comparison (Radar)</h3>
+            <canvas id="compareRadarChart"></canvas>
+          </div>
+          <div id="bestPickCard" class="best-pick-card"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ======================= FAVORITES TAB ======================= -->
+    <div id="tab-favorites" class="tab-section">
+      <section class="table-panel">
+        <h2>⭐ Favorites / Watchlist</h2>
+        <p class="section-subtitle" id="favoritesSubtitle">
+          Star vehicles in the "Search &amp; Filter" tab to add them here.
+          Log in from the Account tab to keep your favorites saved on the server.
+        </p>
+        <div class="table-wrapper">
+          <table id="favoritesTable">
+            <thead>
+              <tr>
+                <th>Brand</th>
+                <th>Model</th>
+                <th>Fuel Type</th>
+                <th>Price (₹)</th>
+                <th>Mileage (km)</th>
+                <th>Segment</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="favoritesTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- ======================= LOGIN / REGISTER MODALS ======================= -->
+    <div id="loginModalOverlay" class="modal-overlay">
+      <div class="modal-box">
+        <button class="modal-close" id="loginModalClose">&times;</button>
+        <h3>Login</h3>
+        <div class="filter-group">
+          <label for="modalLoginUsername">Username</label>
+          <input type="text" id="modalLoginUsername" />
+        </div>
+        <div class="filter-group">
+          <label for="modalLoginPassword">Password</label>
+          <input type="password" id="modalLoginPassword" />
+        </div>
+        <div id="loginModalMessage" class="account-message"></div>
+        <button id="modalLoginBtn" class="apply-btn">Login</button>
+        <p class="modal-switch">Don't have an account? <a href="#" id="switchToRegister">Register</a></p>
+      </div>
+    </div>
+
+    <div id="registerModalOverlay" class="modal-overlay">
+      <div class="modal-box">
+        <button class="modal-close" id="registerModalClose">&times;</button>
+        <h3>Register</h3>
+        <div class="filter-group">
+          <label for="modalRegisterUsername">Username</label>
+          <input type="text" id="modalRegisterUsername" />
+        </div>
+        <div class="filter-group">
+          <label for="modalRegisterPassword">Password</label>
+          <input type="password" id="modalRegisterPassword" />
+        </div>
+        <div id="registerModalMessage" class="account-message"></div>
+        <button id="modalRegisterBtn" class="apply-btn">Register</button>
+        <p class="modal-switch">Already have an account? <a href="#" id="switchToLogin">Login</a></p>
+      </div>
+    </div>
+
+    <!-- Toast notifications (e.g. "Added to favorites") -->
+    <div id="toastContainer" class="toast-container"></div>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
