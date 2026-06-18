@@ -27,7 +27,7 @@ const { rateLimit } = require('express-rate-limit');
 
 // ---------- MongoDB ----------
 const { connect: connectDB, getDb, getClient, close } = require('./db');
-const buildSessionStore      = require('./sessionStore');
+const { buildSessionStore } = require('./sessionStore');
 
 const { fetchVehicleData }              = require('./api');
 const { runKMeans }                     = require('./clustering');
