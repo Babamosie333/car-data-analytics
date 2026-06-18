@@ -24,7 +24,7 @@ A full-stack car data analytics dashboard built with Node.js, Express, vanilla J
 ## Project Structure
 
 ```text
-varun-tripathi-2005-car-data-analytics/
+vikram-car-data-analytics/
 ├── DEPLOYMENT.md
 ├── package.json
 ├── vercel.json
@@ -57,7 +57,7 @@ Because serverless functions do not keep long-lived WebSocket connections open, 
 
 ```bash
 git clone <your-repo-url>
-cd varun-tripathi-2005-car-data-analytics
+cd vikram-car-data-analytics
 npm install
 ```
 
